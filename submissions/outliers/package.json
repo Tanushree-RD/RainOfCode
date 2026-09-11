@@ -1,0 +1,45 @@
+{
+  "name": "orbital-pioneers-exoplanet-detector",
+  "version": "1.0.0",
+  "description": "AI-enabled exoplanet detection pipeline — Orbital Pioneers, ISRO BAH 2026, Challenge 7",
+  "main": "main.js",
+  "author": "Orbital Pioneers",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.orbitalpioneers.exoplanetdetector",
+    "productName": "Exoplanet Detector",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "styles.css",
+      "js/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Education"
+    }
+  }
+}

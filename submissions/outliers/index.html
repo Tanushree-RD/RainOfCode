@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="team-name"><strong></strong></div>
+    <div class="challenge-tag"></div>
+  </div>
+  <nav class="step-nav">
+    <button class="snav on" id="nav1" onclick="go(1)"><span>1</span>Light Curve</button>
+    <button class="snav" id="nav2" onclick="go(2)"><span>2</span>Spectrum</button>
+    <button class="snav" id="nav3" onclick="go(3)"><span>3</span>Train</button>
+    <button class="snav" id="nav4" onclick="go(4)"><span>4</span>Results</button>
+  </nav>
+</header>
+
+<!-- Step 1 -->
+<div class="panel on" id="p1">
+  <h2>Load a light curve</h2>
+  <p class="desc">Choose one of the pre-loaded candidates or upload your own CSV file — one flux value per line, or two columns (time, flux). Any number of points is supported; if your CSV includes a time column, the period search automatically scales to your data's real time span.</p>
+  <div class="row">
+    <div class="col-left">
+      <div class="section-label">Known candidates</div>
+      <button class="star-option" onclick="loadStar('trappist1e',this)"><span class="star-note">ESI 0.97</span><div class="star-title">TRAPPIST-1 e</div><div class="star-info">M8V · 40.7 ly · Period 6.10 d · Optimal habitable zone</div></button>
+      <button class="star-option" onclick="loadStar('k218b',this)"><span class="star-note">ESI 0.63</span><div class="star-title">K2-18 b</div><div class="star-info">K2.5V · 124 ly · Period 32.94 d · Hycean world candidate</div></button>
+      <button class="star-option" onclick="loadStar('toi700d',this)"><span class="star-note">ESI 0.89</span><div class="star-title">TOI-700 d</div><div class="star-info">M2V · 101.4 ly · Period 37.42 d · Confirmed, quiet M-dwarf</div></button>
+      <button class="star-option" onclick="loadStar('kepler90h',this)"><span class="star-note">ESI 0.08</span><div class="star-title">Kepler-90 h</div><div class="star-info">G0V · 2,840 ly · Period 14.44 d · Jupiter-class gas giant</div></button>
+      <div style="margin:14px 0 8px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.6px">Or upload your own</div>
+      <div class="upload-zone" onclick="document.getElementById('csv1').click()">
+        <input type="file" id="csv1" accept=".csv,.txt" onchange="handleFile(this,'lc')" style="display:none">
+        <div style="font-size:20px;margin-bottom:4px">📂</div>
+        Drop a CSV file here, or click to browse
+      </div>
+      <div class="btn-row"><button class="btn-main" id="b1next" onclick="go(2)" disabled>Next — load spectrum</button></div>
+    </div>
+    <div class="col-right">
+      <div class="stats-row">
+        <div class="stat-box"><div class="key">data points</div><div class="val" id="s1">—</div></div>
+        <div class="stat-box"><div class="key">noise level</div><div class="val" id="s2">—</div></div>
+        <div class="stat-box"><div class="key">transit depth</div><div class="val" id="s3">—</div></div>
+        <div class="stat-box"><div class="key">period</div><div class="val" id="s4">—</div></div>
+      </div>
+      <div class="chart-box"><div class="chart-lbl">Phase-folded light curve</div><canvas id="lcC" style="width:100%;height:170px;display:block"></canvas><div id="lcH" style="text-align:center;padding:50px 0;color:#64748b;font-size:12px">Select a candidate to display</div></div>
+      <div class="chart-box"><div class="chart-lbl">BLS period power spectrum</div><canvas id="blsC" style="width:100%;height:110px;display:block"></canvas><div id="blsH" style="text-align:center;padding:32px 0;color:#64748b;font-size:12px">Appears after loading</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2 -->
+<div class="panel" id="p2">
+  <h2>Transmission spectrum</h2>
+  <p class="desc">When the planet transits, starlight filters through its atmosphere — different gases absorb at different wavelengths. Generate a simulated JWST-style spectrum from the star's parameters, or upload your own wavelength/depth CSV. The 12 gas abundance features extracted here are added to the 20 photometric features, giving the model 32 inputs total.</p>
+  <div class="row">
+    <div class="col-left">
+      <button class="btn-teal" style="width:100%;justify-content:center;margin-bottom:10px;text-align:center;padding:11px" onclick="genSpec()">Generate spectrum from star parameters</button>
+      <div class="upload-zone" onclick="document.getElementById('csv2').click()">
+        <input type="file" id="csv2" accept=".csv,.txt" onchange="handleFile(this,'spec')" style="display:none">
+        <div style="font-size:18px;margin-bottom:3px">📡</div>
+        Or upload wavelength,depth CSV
+      </div>
+      <div id="specNote" style="display:none;font-size:10.5px;color:#7a6040;background:#fdf6ec;border:1px solid #f0dfc0;border-radius:5px;padding:7px 9px;margin-bottom:10px"></div>
+      <div class="chart-box" style="margin-top:10px">
+        <div class="chart-lbl">Gas detection results</div>
+        <div id="gasRes" style="color:#64748b;font-size:12px">Generate or upload a spectrum above.</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-main" id="b2next" onclick="go(3)" disabled>Continue to training</button>
+        <button class="btn-secondary" onclick="go(1)">Back</button>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="stats-row">
+        <div class="stat-box"><div class="key">wavelength range</div><div class="val" id="ss1">—</div></div>
+        <div class="stat-box"><div class="key">data points</div><div class="val" id="ss2">—</div></div>
+        <div class="stat-box"><div class="key">spectral SNR</div><div class="val" id="ss3">—</div></div>
+        <div class="stat-box"><div class="key">gases detected</div><div class="val" id="ss4">—</div></div>
+      </div>
+      <div class="chart-box"><div class="chart-lbl">Transmission spectrum — observed (grey) and model fit (blue)</div><canvas id="specC" style="width:100%;height:190px;display:block"></canvas><div id="specH" style="text-align:center;padding:55px 0;color:#64748b;font-size:12px">Generate or upload a spectrum to see it here</div></div>
+      <div class="chart-box"><div class="chart-lbl">Estimated gas abundances (volume mixing ratio, ppm)</div><div id="abC"><div style="color:#64748b;font-size:12px;padding:14px 0;text-align:center">Abundance bars appear after fitting</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 3 -->
+<div class="panel" id="p3">
+  <h2>Train the classifier</h2>
+  <p class="desc">Two classifiers run at detection time: a 1D convolutional neural network trained right here in your browser on synthetic transit/non-transit light curves, and a large language model (Llama, via Groq) that reasons over the measured features in text. Their probabilities are averaged.</p>
+  <div class="row">
+    <div class="col-left">
+      <div class="chart-box">
+        <div class="chart-lbl">1 · CNN — trained locally, no API key needed</div>
+        <div class="slider-row"><div class="slabel">Learning rate <span id="lrV">0.001</span></div><input type="range" id="lrSlider" min="1" max="5" value="3" style="width:100%" oninput="setLR(this.value)"></div>
+        <div class="slider-row"><div class="slabel">Epochs</div><input type="number" id="epInput" value="18" min="4" max="60" style="width:100%;background:#f8fafc;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;color:#1e293b;font-family:inherit;font-size:12.5px"></div>
+        <p style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.5">Trains on 600 synthetic light curves generated on the fly (balanced: real transits vs. noise/flares/eclipsing-binary-like false positives), validated on 150 more, at whatever point-length is currently loaded. Architecture: Conv1D(16)→Conv1D(32)→Conv1D(64)→GlobalAvgPool→Dense(32)→Dense(1,sigmoid).</p>
+        <div class="btn-row"><button class="btn-main" id="btnCNN" onclick="trainCNN()">Train CNN</button></div>
+        <div id="cnnDone" style="display:none;margin-top:12px;padding:9px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;font-size:12px;color:#16a34a"></div>
+      </div>
+      <div class="chart-box"><div class="chart-lbl">Training log</div><div class="log-box" id="cnnLog"><div class="log-line log-info">Click "Train CNN" to run real gradient descent in this tab (uses WebGL — a few seconds).</div></div></div>
+      <div class="chart-box" style="margin-top:10px">
+        <div class="chart-lbl">2 · LLM — needs a Groq API key</div>
+        <div class="slider-row"><div class="slabel">Groq API key</div><input type="password" id="apiKeyInput" placeholder="gsk_... paste your key here" style="width:100%;background:#f8fafc;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;color:#1e293b;font-family:inherit;font-size:12.5px"></div>
+        <div class="slider-row"><div class="slabel">Model</div><input type="text" id="modelInput" value="llama-3.1-8b-instant" style="width:100%;background:#f8fafc;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;color:#1e293b;font-family:inherit;font-size:12.5px"></div>
+        <p style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Your token stays in this browser tab and is sent to Groq for inference. It is not saved by this app.</p>
+        <div class="btn-row">
+          <button class="btn-main" id="btnTr" onclick="connectAI()">Connect & Test</button>
+          <button class="btn-secondary" onclick="go(2)">Back</button>
+        </div>
+        <div id="trainDone" style="display:none;margin-top:12px;padding:9px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;font-size:12px;color:#16a34a"></div>
+      </div>
+      <div class="chart-box"><div class="chart-lbl">Connection log</div><div class="log-box" id="trainLog"><div class="log-line log-info">Paste your Groq API key and click "Connect & Test".</div></div></div>
+    </div>
+    <div class="col-right">
+      <div class="chart-box"><div class="chart-lbl" id="archNote">Mode: LLM-based classification (photometric only)</div>
+        <canvas id="lossC" style="width:100%;height:130px;display:block"></canvas>
+        <div id="lossH" style="text-align:center;padding:34px 0;color:#64748b;font-size:12px">Training loss appears here</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-lbl">Validation accuracy</div>
+        <canvas id="accC" style="width:100%;height:130px;display:block"></canvas>
+        <div id="accH" style="text-align:center;padding:34px 0;color:#64748b;font-size:12px">Appears after training</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-lbl">How this works</div>
+        <p style="font-size:12.5px;color:#1e3a5a;line-height:1.65">
+          The CNN reads the raw, normalized light curve directly (real convolutional filters, real backpropagation, real train/validation split — sized to however many points are currently loaded) and learns to recognize the transit shape on its own. The LLM instead reads ~20–32 hand-measured numbers (depth, symmetry, gas amplitudes, etc.) as text and reasons about them. At detection time, if both are ready their probabilities are averaged; if only one is ready, that one is used alone.
+        </p>
+      </div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn-main" id="btnRun" onclick="go(4)" disabled>Run detection</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4 -->
+<div class="panel" id="p4">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div><h2>Detection results</h2><p class="desc" style="margin-bottom:0">Photometric and spectroscopic analysis combined</p></div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <button class="btn-teal" id="btnPPT" onclick="downloadPDF()">⬇ Download as PDF</button>
+      <button class="btn-secondary" onclick="go(1)">Start over</button>
+    </div>
+  </div>
+  <div id="dLoad" style="text-align:center;padding:50px;display:none">
+    <div style="width:24px;height:24px;border:2px solid #1d4ed8;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>
+    <div style="color:#64748b;font-size:13px" id="dMsg">Running analysis…</div>
+  </div>
+  <div id="dOut" style="display:none">
+    <div class="section-label" style="margin-bottom:8px">Sample outputs — summary</div>
+    <div class="chart-box" id="pptSummaryBox" style="margin-bottom:18px">
+      <div class="two-col">
+        <div>
+          <div class="chart-lbl">1. Transit detection curve</div>
+          <canvas id="sumC" style="width:100%;height:140px;display:block"></canvas>
+        </div>
+        <div id="pptSummaryText"></div>
+      </div>
+    </div>
+    <div class="result-header">
+      <div class="prob-big" id="rProb">—</div>
+      <div class="prob-verdict" id="rVerdict">—</div>
+      <div class="prob-detail" id="rDetail">—</div>
+    </div>
+    <div class="params-grid" id="rParams"></div>
+    <div class="two-col" style="margin-bottom:14px">
+      <div class="chart-box"><div class="chart-lbl">Phase-folded transit</div><canvas id="fldC" style="width:100%;height:165px;display:block"></canvas></div>
+      <div class="chart-box"><div class="chart-lbl">Raw light curve — transit region highlighted</div><canvas id="rawC" style="width:100%;height:165px;display:block"></canvas></div>
+    </div>
+
+    <!-- Evidence checklist (inspired by the PDF approach) -->
+    <div class="two-col" style="margin-bottom:14px">
+      <div>
+        <div class="section-label" style="margin-bottom:8px">Evidence summary</div>
+        <div class="evidence-box" id="evidenceBox"></div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:8px">Physics consistency</div>
+        <div class="chart-box" style="margin-bottom:0">
+          <div id="physicsScore"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spectroscopy -->
+    <div id="specPanel" style="display:none;margin-bottom:14px">
+      <div class="section-label" style="margin-bottom:8px">Atmospheric retrieval — spectroscopic analysis</div>
+      <div class="spec-panel">
+        <div class="spec-panel-title">Transmission spectrum with best-fit gas model</div>
+        <div class="two-col">
+          <div class="chart-box" style="background:#f8fafc;border-color:#bdeae4;margin-bottom:0"><canvas id="specR" style="width:100%;height:145px;display:block"></canvas></div>
+          <div><div id="gasAb"></div></div>
+        </div>
+        <div class="atmos-summary" id="atmosSum"></div>
+      </div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="two-col">
+      <div>
+        <div class="section-label" style="margin-bottom:8px">Biosignature assessment</div>
+        <div class="chart-box">
+          <div id="bioList"></div>
+          <div style="margin-top:12px">
+            <div style="font-size:11px;color:#64748b;margin-bottom:5px">Combined biosignature confidence</div>
+            <div style="height:4px;background:#dbe3ee;border-radius:2px"><div id="bBar" style="height:100%;border-radius:2px;transition:width .7s;width:0%"></div></div>
+            <div id="bScore" style="font-size:24px;font-weight:bold;margin-top:8px"></div>
+            <div id="bSrc" style="color:#64748b;font-size:10.5px;margin-top:2px"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:8px">Recommended follow-up</div>
+        <div class="chart-box"><div id="followUp"></div></div>
+        <div style="margin-top:12px">
+          <div class="section-label" style="margin-bottom:8px">Candidate priority ranking</div>
+          <div class="chart-box"><table class="rank-table" id="rankTable"><thead><tr><th>Candidate</th><th>Planet prob.</th><th>Physics score</th><th>Habitability</th><th>Priority</th></tr></thead><tbody id="rankBody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/model.js"></script>
+<script src="js/lightcurve.js"></script>
+<script src="js/spectrum.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pdf.js"></script>
+</body>
+</html>
